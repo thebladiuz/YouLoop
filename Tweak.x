@@ -9,31 +9,39 @@
 #import "../YouTubeHeader/YTMainAppControlsOverlayView.h"
 #import "../YouTubeHeader/YTPlayerViewController.h"
 
-#define TweakKey @"YouTimeStamp"
+#define TweakKey @"YouLoop"
 
-@interface YTMainAppVideoPlayerOverlayViewController (YouTimeStamp)
+static NSBundle *tweakBundle = nil;
+
+@interface YTMainAppVideoPlayerOverlayViewController (YouLoop)
 @property (nonatomic, assign) YTPlayerViewController *parentViewController;
+@property (nonatomic, assign, readwrite) NSInteger loopMode;
 @end
 
-@interface YTPlayerViewController (YouTimeStamp)
+@interface YTPlayerViewController (YouLoop)
 @property (nonatomic, assign) CGFloat currentVideoMediaTime;
 @property (nonatomic, assign) NSString *currentVideoID;
-- (void)didPressYouTimeStamp;
+- (void)didPressYouLoop;
 @end
 
-@interface YTMainAppControlsOverlayView (YouTimeStamp)
-@property (retain, nonatomic) YTQTMButton *timestampButton;
+@interface YTAutoplayAutonavController : NSObject
+- (NSInteger)loopMode;
+- (void)setLoopMode:(NSInteger)loopMode;
+@end
+
+@interface YTMainAppControlsOverlayView (YouLoop)
+@property (retain, nonatomic) YTQTMButton *youLoopButton;
 @property (nonatomic, assign) YTPlayerViewController *playerViewController;
-- (void)didPressYouTimeStamp:(id)arg;
+- (void)didPressYouLoop:(id)arg;
 @end
 
 @interface YTInlinePlayerBarController : NSObject
 @end
 
-@interface YTInlinePlayerBarContainerView (YouTimeStamp)
-@property (retain, nonatomic) YTQTMButton *timestampButton;
+@interface YTInlinePlayerBarContainerView (YouLoop)
+@property (retain, nonatomic) YTQTMButton *youLoopButton;
 @property (nonatomic, strong) YTInlinePlayerBarController *delegate;
-- (void)didPressYouTimeStamp:(id)arg;
+- (void)didPressYouLoop:(id)arg;
 @end
 
 
@@ -53,7 +61,7 @@
 + (id)sharedInstance;
 @end
 
-NSBundle *YouTimeStampBundle() {
+NSBundle *YouLoopBundle() {
     static NSBundle *bundle = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -66,34 +74,35 @@ NSBundle *YouTimeStampBundle() {
     return bundle;
 }
 
-static UIImage *timestampImage(NSString *qualityLabel) {
-    return [%c(QTMIcon) tintImage:[UIImage imageNamed:[NSString stringWithFormat:@"Timestamp@%@", qualityLabel] inBundle: YouTimeStampBundle() compatibleWithTraitCollection:nil] color:[%c(YTColor) white1]];
+static UIImage *getYouLoopImage(NSString *qualityLabel) {
+    return [%c(QTMIcon) tintImage:[UIImage imageNamed:[NSString stringWithFormat:@"PlayerLoop@%@", qualityLabel] inBundle: YouLoopBundle() compatibleWithTraitCollection:nil] color:[%c(YTColor) white1]];
 }
 
 %group Main
 %hook YTPlayerViewController
-// New method to copy the URL with the timestamp to the clipboard - @arichornlover
+// New method to copy the URL with the timestamp to the clipboard
 %new
-- (void)didPressYouTimeStamp {
-    // Get the current time of the video
-    CGFloat currentTime = self.currentVideoMediaTime;
-    NSInteger timeInterval = (NSInteger)currentTime;
-
-    // Create a link using the video ID and the timestamp
-    if (self.currentVideoID) {
-        NSString *videoId = [NSString stringWithFormat:@"https://youtu.be/%@", self.currentVideoID];
-        NSString *timestampString = [NSString stringWithFormat:@"?t=%.0ld", (long)timeInterval];
-
-        // Create link
-        NSString *modifiedURL = [videoId stringByAppendingString:timestampString];
-        // Copy the link to clipboard
-        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
-        [pasteboard setString:modifiedURL];
-        // Show a snackbar to inform the user
-        [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:@"URL copied to clipboard"]];
-
-    } else {
-        NSLog(@"No video ID available");
+- (void)didPressYouLoop {
+    id mainAppController = self.activeVideoPlayerOverlay;
+    // Check if type is YTMainAppVideoPlayerOverlayViewController
+    if ([mainAppController isKindOfClass:objc_getClass("YTMainAppVideoPlayerOverlayViewController")]) {
+        // Get the autoplay navigation controller
+        YTMainAppVideoPlayerOverlayViewController *playerOverlay = (YTMainAppVideoPlayerOverlayViewController *)mainAppController;
+        YTAutoplayAutonavController *autoplayController = (YTAutoplayAutonavController *)[playerOverlay valueForKey:@"_autonavController"];
+        // Toggle the loop state
+        if ([autoplayController loopMode] == 0) {
+            [autoplayController setLoopMode:2];
+            // Store state for future videos
+            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"defaultLoop_enabled"];
+            // Display snackbar
+            [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(@"Loop enabled")]];
+        } else {
+            [autoplayController setLoopMode:0];
+            // Store state for future videos
+            [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"defaultLoop_enabled"];
+            // Display snackbar
+            [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(@"Loop disabled")]];
+        }    
     }
 }
 %end
@@ -104,36 +113,36 @@ static UIImage *timestampImage(NSString *qualityLabel) {
   */
 %group Top
 %hook YTMainAppControlsOverlayView
-%property (retain, nonatomic) YTQTMButton *timestampButton;
+%property (retain, nonatomic) YTQTMButton *youLoopButton;
 
 // Modify the initializers to add the custom timestamp button
 - (id)initWithDelegate:(id)delegate {
     self = %orig;
-    self.timestampButton = [self createButton:TweakKey accessibilityLabel:@"Copy Timestamp" selector:@selector(didPressYouTimeStamp:)];
+    self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
     return self;
 }
 - (id)initWithDelegate:(id)delegate autoplaySwitchEnabled:(BOOL)autoplaySwitchEnabled {
     self = %orig;
-    self.timestampButton = [self createButton:TweakKey accessibilityLabel:@"Copy Timestamp" selector:@selector(didPressYouTimeStamp:)];
+    self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
     return self;
 }
 
 // Modify methods that retrieve a button from an ID to return our custom button
 - (YTQTMButton *)button:(NSString *)tweakId {
-    return [tweakId isEqualToString:TweakKey] ? self.timestampButton : %orig;
+    return [tweakId isEqualToString:TweakKey] ? self.youLoopButton : %orig;
 }
 - (UIImage *)buttonImage:(NSString *)tweakId {
-    return [tweakId isEqualToString:TweakKey] ? timestampImage(@"3") : %orig;
+    return [tweakId isEqualToString:TweakKey] ? getYouLoopImage(@"3") : %orig;
 }
 
 // Custom method to handle the timestamp button press
 %new(v@:@)
-- (void)didPressYouTimeStamp:(id)arg {
+- (void)didPressYouLoop:(id)arg {
     // Call our custom method in the YTPlayerViewController class - this is 
     // directly accessible in the self.playerViewController property
     YTPlayerViewController *playerViewController = self.playerViewController;
     if (playerViewController) {
-        [playerViewController didPressYouTimeStamp];
+        [playerViewController didPressYouLoop];
     }
 }
 
@@ -145,33 +154,33 @@ static UIImage *timestampImage(NSString *qualityLabel) {
   */
 %group Bottom
 %hook YTInlinePlayerBarContainerView
-%property (retain, nonatomic) YTQTMButton *timestampButton;
+%property (retain, nonatomic) YTQTMButton *youLoopButton;
 
 // Modify the initializer to add the custom timestamp button
 - (id)init {
     self = %orig;
-    self.timestampButton = [self createButton:TweakKey accessibilityLabel:@"Copy Timestamp" selector:@selector(didPressYouTimeStamp:)];
+    self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
     return self;
 }
 
 // Modify methods that retrieve a button from an ID to return our custom button
 - (YTQTMButton *)button:(NSString *)tweakId {
-    return [tweakId isEqualToString:TweakKey] ? self.timestampButton : %orig;
+    return [tweakId isEqualToString:TweakKey] ? self.youLoopButton : %orig;
 }
 - (UIImage *)buttonImage:(NSString *)tweakId {
-    return [tweakId isEqualToString:TweakKey] ? timestampImage(@"3") : %orig;
+    return [tweakId isEqualToString:TweakKey] ? getYouLoopImage(@"3") : %orig;
 }
 
 // Custom method to handle the timestamp button press
 %new(v@:@)
-- (void)didPressYouTimeStamp:(id)arg {
+- (void)didPressYouLoop:(id)arg {
     // Navigate to the YTPlayerViewController class from here
     YTInlinePlayerBarController *delegate = self.delegate; // for @property
     YTMainAppVideoPlayerOverlayViewController *_delegate = [delegate valueForKey:@"_delegate"]; // for ivars
     YTPlayerViewController *parentViewController = _delegate.parentViewController;
     // Call our custom method in the YTPlayerViewController class
     if (parentViewController) {
-        [parentViewController didPressYouTimeStamp];
+        [parentViewController didPressYouLoop];
     }
 }
 
@@ -179,6 +188,10 @@ static UIImage *timestampImage(NSString *qualityLabel) {
 %end
 
 %ctor {
+    tweakBundle = [NSBundle bundleWithPath:@"/Library/Application Support/YouLoop.bundle"];
+    if (!tweakBundle) {
+        NSLog(@"[Tweak] Failed to load bundle from path: /Library/Application Support/YouLoop.bundle");
+    }
     initYTVideoOverlay(TweakKey);
     %init(Main);
     %init(Top);

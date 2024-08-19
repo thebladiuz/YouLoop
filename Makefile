@@ -5,7 +5,7 @@ ARCHS = arm64
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = YouTimeStamp
+TWEAK_NAME = YouLoop
 
 $(TWEAK_NAME)_FILES = Tweak.x
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc

@@ -1,4 +1,4 @@
-# YouTimeStamp
+# YouLoop
 
 Have the ability to copy the youtube video url with the current timestamp on a video.
 

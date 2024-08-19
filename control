@@ -1,9 +1,9 @@
-Package: com.arichornlover.youtimestamp
-Name: YouTimeStamp
+Package: com.bhackel.youloop
+Name: YouLoop
 Version: 1.0.0
 Architecture: iphoneos-arm
 Description: copies the video url with the timestamp included.
-Maintainer: arichornlover
-Author: arichornlover
+Maintainer: bhackel
+Author: bhackel
 Section: Tweaks
 Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 11.0), com.ps.ytvideooverlay (>= 1.1.0)
