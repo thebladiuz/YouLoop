@@ -11,8 +11,6 @@
 
 #define TweakKey @"YouLoop"
 
-static NSBundle *tweakBundle = nil;
-
 @interface YTMainAppVideoPlayerOverlayViewController (YouLoop)
 @property (nonatomic, assign) YTPlayerViewController *parentViewController;
 @property (nonatomic, assign, readwrite) NSInteger loopMode;
@@ -73,6 +71,7 @@ NSBundle *YouLoopBundle() {
     });
     return bundle;
 }
+static NSBundle *tweakBundle = nil;
 
 static UIImage *getYouLoopImage(NSString *qualityLabel) {
     return [%c(QTMIcon) tintImage:[UIImage imageNamed:[NSString stringWithFormat:@"PlayerLoop@%@", qualityLabel] inBundle: YouLoopBundle() compatibleWithTraitCollection:nil] color:[%c(YTColor) white1]];
@@ -83,18 +82,24 @@ static UIImage *getYouLoopImage(NSString *qualityLabel) {
 // New method to copy the URL with the timestamp to the clipboard
 %new
 - (void)didPressYouLoop {
+    NSLog(@"YouLoop: Copying URL with timestamp");
     id mainAppController = self.activeVideoPlayerOverlay;
     // Check if type is YTMainAppVideoPlayerOverlayViewController
+    NSLog(@"YouLoop: Checking if mainAppController is YTMainAppVideoPlayerOverlayViewController");
     if ([mainAppController isKindOfClass:objc_getClass("YTMainAppVideoPlayerOverlayViewController")]) {
         // Get the autoplay navigation controller
+        NSLog(@"YouLoop: Getting autoplay controller");
         YTMainAppVideoPlayerOverlayViewController *playerOverlay = (YTMainAppVideoPlayerOverlayViewController *)mainAppController;
+        NSLog(@"YouLoop: Getting autoplay controller");
         YTAutoplayAutonavController *autoplayController = (YTAutoplayAutonavController *)[playerOverlay valueForKey:@"_autonavController"];
         // Toggle the loop state
+        NSLog(@"YouLoop: Toggling loop state");
         if ([autoplayController loopMode] == 0) {
             [autoplayController setLoopMode:2];
             // Store state for future videos
             [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"defaultLoop_enabled"];
             // Display snackbar
+            NSLog(@"YouLoop: Displaying snackbar");
             [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(@"Loop enabled")]];
         } else {
             [autoplayController setLoopMode:0];
@@ -188,10 +193,7 @@ static UIImage *getYouLoopImage(NSString *qualityLabel) {
 %end
 
 %ctor {
-    tweakBundle = [NSBundle bundleWithPath:@"/Library/Application Support/YouLoop.bundle"];
-    if (!tweakBundle) {
-        NSLog(@"[Tweak] Failed to load bundle from path: /Library/Application Support/YouLoop.bundle");
-    }
+    tweakBundle = YouLoopBundle();
     initYTVideoOverlay(TweakKey);
     %init(Main);
     %init(Top);
