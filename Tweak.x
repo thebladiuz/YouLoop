@@ -42,6 +42,9 @@
 - (void)didPressYouLoop:(id)arg;
 @end
 
+@interface YTColor (YouLoop)
++ (UIColor *)lightRed;
+@end
 
 // For displaying snackbars - @theRealfoxster
 @interface YTHUDMessage : NSObject
@@ -71,10 +74,15 @@ NSBundle *YouLoopBundle() {
     });
     return bundle;
 }
-static NSBundle *tweakBundle = nil;
+static NSBundle *tweakBundle = nil; // not sure why this is needed
 
-static UIImage *getYouLoopImage(NSString *qualityLabel) {
-    return [%c(QTMIcon) tintImage:[UIImage imageNamed:[NSString stringWithFormat:@"PlayerLoop@%@", qualityLabel] inBundle: YouLoopBundle() compatibleWithTraitCollection:nil] color:[%c(YTColor) white1]];
+// Get the image for the loop button based on the given state and size
+static UIImage *getYouLoopImage(NSString *imageSize) {
+    BOOL isLoopEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"defaultLoop_enabled"];
+    UIColor *tintColor = isLoopEnabled ? [%c(YTColor) lightRed] : [%c(YTColor) white1];
+    NSString *imageName = [NSString stringWithFormat:@"PlayerLoop@%@", imageSize];
+    NSLog(@"YouLoop: Loading image %@", imageName);
+    return [%c(QTMIcon) tintImage:[UIImage imageNamed:imageName inBundle:YouLoopBundle() compatibleWithTraitCollection:nil] color:tintColor];
 }
 
 %group Main
@@ -82,32 +90,19 @@ static UIImage *getYouLoopImage(NSString *qualityLabel) {
 // New method to copy the URL with the timestamp to the clipboard
 %new
 - (void)didPressYouLoop {
-    NSLog(@"YouLoop: Copying URL with timestamp");
     id mainAppController = self.activeVideoPlayerOverlay;
     // Check if type is YTMainAppVideoPlayerOverlayViewController
-    NSLog(@"YouLoop: Checking if mainAppController is YTMainAppVideoPlayerOverlayViewController");
     if ([mainAppController isKindOfClass:objc_getClass("YTMainAppVideoPlayerOverlayViewController")]) {
         // Get the autoplay navigation controller
-        NSLog(@"YouLoop: Getting autoplay controller");
         YTMainAppVideoPlayerOverlayViewController *playerOverlay = (YTMainAppVideoPlayerOverlayViewController *)mainAppController;
-        NSLog(@"YouLoop: Getting autoplay controller");
         YTAutoplayAutonavController *autoplayController = (YTAutoplayAutonavController *)[playerOverlay valueForKey:@"_autonavController"];
-        // Toggle the loop state
-        NSLog(@"YouLoop: Toggling loop state");
-        if ([autoplayController loopMode] == 0) {
-            [autoplayController setLoopMode:2];
-            // Store state for future videos
-            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"defaultLoop_enabled"];
-            // Display snackbar
-            NSLog(@"YouLoop: Displaying snackbar");
-            [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(@"Loop enabled")]];
-        } else {
-            [autoplayController setLoopMode:0];
-            // Store state for future videos
-            [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"defaultLoop_enabled"];
-            // Display snackbar
-            [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(@"Loop disabled")]];
-        }    
+        // Toggle the loop state between 0 (disabled) and 2 (enabled)
+        BOOL isLoopEnabled = ([autoplayController loopMode] == 0);
+        [autoplayController setLoopMode:isLoopEnabled ? 2 : 0];
+        // Store state for future videos
+        [[NSUserDefaults standardUserDefaults] setBool:isLoopEnabled forKey:@"defaultLoop_enabled"];
+        // Display snackbar
+        [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(isLoopEnabled ? @"Loop enabled" : @"Loop disabled")]];
     }
 }
 %end
@@ -149,6 +144,8 @@ static UIImage *getYouLoopImage(NSString *qualityLabel) {
     if (playerViewController) {
         [playerViewController didPressYouLoop];
     }
+    // Update button color
+    [self.youLoopButton setImage:getYouLoopImage(@"3") forState:0];
 }
 
 %end
@@ -187,13 +184,15 @@ static UIImage *getYouLoopImage(NSString *qualityLabel) {
     if (parentViewController) {
         [parentViewController didPressYouLoop];
     }
+    // Update button color
+    [self.youLoopButton setImage:getYouLoopImage(@"3") forState:0];
 }
 
 %end
 %end
 
 %ctor {
-    tweakBundle = YouLoopBundle();
+    tweakBundle = YouLoopBundle(); // not sure why this is needed
     initYTVideoOverlay(TweakKey);
     %init(Main);
     %init(Top);
