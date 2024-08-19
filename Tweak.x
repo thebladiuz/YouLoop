@@ -72,6 +72,7 @@ NSBundle *YouLoopBundle() {
         else
             bundle = [NSBundle bundleWithPath:[NSString stringWithFormat:ROOT_PATH_NS(@"/Library/Application Support/%@.bundle"), TweakKey]];
     });
+    NSLog(@"YouLoop: Using bundle %@", bundle);
     return bundle;
 }
 static NSBundle *tweakBundle = nil; // not sure why this is needed
@@ -81,7 +82,11 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
     BOOL isLoopEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"defaultLoop_enabled"];
     UIColor *tintColor = isLoopEnabled ? [%c(YTColor) lightRed] : [%c(YTColor) white1];
     NSString *imageName = [NSString stringWithFormat:@"PlayerLoop@%@", imageSize];
+    NSLog(@"YouLoop: Image Size: %@", imageSize);
     NSLog(@"YouLoop: Loading image %@", imageName);
+    if (![UIImage imageNamed:imageName inBundle:YouLoopBundle() compatibleWithTraitCollection:nil]) {
+        NSLog(@"YouLoop: Failed to load image %@", imageName);
+    }
     return [%c(QTMIcon) tintImage:[UIImage imageNamed:imageName inBundle:YouLoopBundle() compatibleWithTraitCollection:nil] color:tintColor];
 }
 
