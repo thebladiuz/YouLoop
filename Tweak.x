@@ -11,6 +11,8 @@
 
 #define TweakKey @"YouLoop"
 
+#define IS_ENABLED(k) [[NSUserDefaults standardUserDefaults] boolForKey:k]
+
 @interface YTMainAppVideoPlayerOverlayViewController (YouLoop)
 @property (nonatomic, assign) YTPlayerViewController *parentViewController;
 @property (nonatomic, assign, readwrite) NSInteger loopMode;
@@ -72,21 +74,14 @@ NSBundle *YouLoopBundle() {
         else
             bundle = [NSBundle bundleWithPath:[NSString stringWithFormat:ROOT_PATH_NS(@"/Library/Application Support/%@.bundle"), TweakKey]];
     });
-    NSLog(@"YouLoop: Using bundle %@", bundle);
     return bundle;
 }
 static NSBundle *tweakBundle = nil; // not sure why this is needed
 
 // Get the image for the loop button based on the given state and size
 static UIImage *getYouLoopImage(NSString *imageSize) {
-    BOOL isLoopEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"defaultLoop_enabled"];
-    UIColor *tintColor = isLoopEnabled ? [%c(YTColor) lightRed] : [%c(YTColor) white1];
+    UIColor *tintColor = IS_ENABLED(@"defaultLoop_enabled") ? [%c(YTColor) lightRed] : [%c(YTColor) white1];
     NSString *imageName = [NSString stringWithFormat:@"PlayerLoop@%@", imageSize];
-    NSLog(@"YouLoop: Image Size: %@", imageSize);
-    NSLog(@"YouLoop: Loading image %@", imageName);
-    if (![UIImage imageNamed:imageName inBundle:YouLoopBundle() compatibleWithTraitCollection:nil]) {
-        NSLog(@"YouLoop: Failed to load image %@", imageName);
-    }
     return [%c(QTMIcon) tintImage:[UIImage imageNamed:imageName inBundle:YouLoopBundle() compatibleWithTraitCollection:nil] color:tintColor];
 }
 
@@ -111,6 +106,27 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
     }
 }
 %end
+
+%hook YTAutoplayAutonavController
+- (id)initWithParentResponder:(id)arg1 {
+    self = %orig(arg1);
+    NSLog(@"[YouLoop] Autoplay controller initialized");
+    if (self) {
+        if (IS_ENABLED(@"defaultLoop_enabled")) {
+            [self setLoopMode:2];
+        }
+    }
+    return self;
+}
+// Modify the setter to always follow the user's preference
+- (void)setLoopMode:(NSInteger)arg1 {
+    if (IS_ENABLED(@"defaultLoop_enabled")) {
+        arg1 = 2;
+    }
+    %orig;
+}
+%end
+
 %end
 
 /**
