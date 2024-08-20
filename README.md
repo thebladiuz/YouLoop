@@ -1,5 +1,9 @@
 # YouLoop
 
-Have the ability to copy the youtube video url with the current timestamp on a video.
+Adds a player button to enable/disable looping on the current video.
 
-Please use with https://github.com/PoomSmart/YTVideoOverlay if you want to be able to use this.
+This tweak would not be possible without the work done by PoomSmart and arichornlover.
+
+Repeat icons created by Uniconlabs - Flaticon.
+
+Dependency: https://github.com/PoomSmart/YTVideoOverlay

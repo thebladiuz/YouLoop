@@ -10,42 +10,39 @@
 #import "../YouTubeHeader/YTPlayerViewController.h"
 
 #define TweakKey @"YouLoop"
-
 #define IS_ENABLED(k) [[NSUserDefaults standardUserDefaults] boolForKey:k]
 
 @interface YTMainAppVideoPlayerOverlayViewController (YouLoop)
-@property (nonatomic, assign) YTPlayerViewController *parentViewController;
-@property (nonatomic, assign, readwrite) NSInteger loopMode;
+@property (nonatomic, assign) YTPlayerViewController *parentViewController; // for accessing YTPlayerViewController
 @end
 
 @interface YTPlayerViewController (YouLoop)
-@property (nonatomic, assign) CGFloat currentVideoMediaTime;
-@property (nonatomic, assign) NSString *currentVideoID;
-- (void)didPressYouLoop;
+- (void)didPressYouLoop; // contains actual logic for enabling/disabling loop
 @end
 
 @interface YTAutoplayAutonavController : NSObject
-- (NSInteger)loopMode;
-- (void)setLoopMode:(NSInteger)loopMode;
+- (NSInteger)loopMode; // for reading loop state
+- (void)setLoopMode:(NSInteger)loopMode; // for setting loop state
 @end
 
 @interface YTMainAppControlsOverlayView (YouLoop)
-@property (retain, nonatomic) YTQTMButton *youLoopButton;
-@property (nonatomic, assign) YTPlayerViewController *playerViewController;
-- (void)didPressYouLoop:(id)arg;
+@property (retain, nonatomic) YTQTMButton *youLoopButton; // for custom button
+@property (nonatomic, assign) YTPlayerViewController *playerViewController; // for accessing YTPlayerViewController
+- (void)didPressYouLoop:(id)arg; // for custom button press
 @end
 
+// For accessing YTPlayerViewController
 @interface YTInlinePlayerBarController : NSObject
 @end
 
 @interface YTInlinePlayerBarContainerView (YouLoop)
-@property (retain, nonatomic) YTQTMButton *youLoopButton;
-@property (nonatomic, strong) YTInlinePlayerBarController *delegate;
-- (void)didPressYouLoop:(id)arg;
+@property (retain, nonatomic) YTQTMButton *youLoopButton; // for custom button
+@property (nonatomic, strong) YTInlinePlayerBarController *delegate; // for accessing YTPlayerViewController
+- (void)didPressYouLoop:(id)arg; // for custom button press
 @end
 
 @interface YTColor (YouLoop)
-+ (UIColor *)lightRed;
++ (UIColor *)lightRed; // for tinting the loop button when enabled
 @end
 
 // For displaying snackbars - @theRealfoxster
@@ -53,17 +50,12 @@
 + (id)messageWithText:(id)text;
 - (void)setAction:(id)action;
 @end
-
-@interface GOOHUDMessageAction : NSObject
-- (void)setTitle:(NSString *)title;
-- (void)setHandler:(void (^)(id))handler;
-@end
-
 @interface GOOHUDManagerInternal : NSObject
 - (void)showMessageMainThread:(id)message;
 + (id)sharedInstance;
 @end
 
+// Retrieves the bundle for the tweak
 NSBundle *YouLoopBundle() {
     static NSBundle *bundle = nil;
     static dispatch_once_t onceToken;
@@ -76,7 +68,7 @@ NSBundle *YouLoopBundle() {
     });
     return bundle;
 }
-static NSBundle *tweakBundle = nil; // not sure why this is needed
+static NSBundle *tweakBundle = nil; // not sure why I need to store tweakBundle
 
 // Get the image for the loop button based on the given state and size
 static UIImage *getYouLoopImage(NSString *imageSize) {
@@ -87,7 +79,8 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 
 %group Main
 %hook YTPlayerViewController
-// New method to copy the URL with the timestamp to the clipboard
+// New method to enable looping on the current video, also stores state
+// for all future videos
 %new
 - (void)didPressYouLoop {
     id mainAppController = self.activeVideoPlayerOverlay;
@@ -96,11 +89,12 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
         // Get the autoplay navigation controller
         YTMainAppVideoPlayerOverlayViewController *playerOverlay = (YTMainAppVideoPlayerOverlayViewController *)mainAppController;
         YTAutoplayAutonavController *autoplayController = (YTAutoplayAutonavController *)[playerOverlay valueForKey:@"_autonavController"];
-        // Toggle the loop state between 0 (disabled) and 2 (enabled)
+        // Get the current loop state from the controller's method
         BOOL isLoopEnabled = ([autoplayController loopMode] == 0);
-        [autoplayController setLoopMode:isLoopEnabled ? 2 : 0];
-        // Store state for future videos
+        // Update the key for later use
         [[NSUserDefaults standardUserDefaults] setBool:isLoopEnabled forKey:@"defaultLoop_enabled"];
+        // Set the loop mode to the opposite of the current state
+        [autoplayController setLoopMode:isLoopEnabled ? 2 : 0];
         // Display snackbar
         [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(isLoopEnabled ? @"Loop enabled" : @"Loop disabled")]];
     }
@@ -108,9 +102,9 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 %end
 
 %hook YTAutoplayAutonavController
+// Modify the initializer to set the loop mode to the user's preference
 - (id)initWithParentResponder:(id)arg1 {
     self = %orig(arg1);
-    NSLog(@"[YouLoop] Autoplay controller initialized");
     if (self) {
         if (IS_ENABLED(@"defaultLoop_enabled")) {
             [self setLoopMode:2];
@@ -118,7 +112,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
     }
     return self;
 }
-// Modify the setter to always follow the user's preference
+// Modify the setter to always follow the user's preference. This breaks normal functionality
 - (void)setLoopMode:(NSInteger)arg1 {
     if (IS_ENABLED(@"defaultLoop_enabled")) {
         arg1 = 2;
@@ -126,17 +120,16 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
     %orig;
 }
 %end
-
 %end
 
 /**
-  * Adds a timestamp copy button to the top area in the video player overlay
+  * Adds a button to the top area in the video player overlay
   */
 %group Top
 %hook YTMainAppControlsOverlayView
 %property (retain, nonatomic) YTQTMButton *youLoopButton;
 
-// Modify the initializers to add the custom timestamp button
+// Modify the initializers to add the custom button
 - (id)initWithDelegate:(id)delegate {
     self = %orig;
     self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
@@ -156,7 +149,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
     return [tweakId isEqualToString:TweakKey] ? getYouLoopImage(@"3") : %orig;
 }
 
-// Custom method to handle the timestamp button press
+// Custom method to handle the button press
 %new(v@:@)
 - (void)didPressYouLoop:(id)arg {
     // Call our custom method in the YTPlayerViewController class - this is 
@@ -173,7 +166,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 %end
 
 /**
-  * Adds a timestamp copy button to the bottom area next to the fullscreen button
+  * Adds a button to the bottom area next to the fullscreen button
   */
 %group Bottom
 %hook YTInlinePlayerBarContainerView
@@ -194,7 +187,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
     return [tweakId isEqualToString:TweakKey] ? getYouLoopImage(@"3") : %orig;
 }
 
-// Custom method to handle the timestamp button press
+// Custom method to handle the button press
 %new(v@:@)
 - (void)didPressYouLoop:(id)arg {
     // Navigate to the YTPlayerViewController class from here
@@ -213,7 +206,8 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 %end
 
 %ctor {
-    tweakBundle = YouLoopBundle(); // not sure why this is needed
+    tweakBundle = YouLoopBundle(); // not sure why I need to store tweakBundle
+    // Setup as defined in the example from YTVideoOverlay
     initYTVideoOverlay(TweakKey);
     %init(Main);
     %init(Top);
