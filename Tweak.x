@@ -6,6 +6,7 @@
 #import "../YTVideoOverlay/Init.x"
 #import "../YouTubeHeader/YTColor.h"
 #import "../YouTubeHeader/YTMainAppVideoPlayerOverlayViewController.h"
+#import "../YouTubeHeader/YTMainAppVideoPlayerOverlayView.h"
 #import "../YouTubeHeader/YTMainAppControlsOverlayView.h"
 #import "../YouTubeHeader/YTPlayerViewController.h"
 
@@ -14,6 +15,10 @@
 
 @interface YTMainAppVideoPlayerOverlayViewController (YouLoop)
 @property (nonatomic, assign) YTPlayerViewController *parentViewController; // for accessing YTPlayerViewController
+@end
+
+@interface YTMainAppVideoPlayerOverlayView (YouLoop)
+@property (nonatomic, weak, readwrite) YTMainAppVideoPlayerOverlayViewController *delegate;
 @end
 
 @interface YTPlayerViewController (YouLoop)
@@ -154,7 +159,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 - (void)didPressYouLoop:(id)arg {
     // Call our custom method in the YTPlayerViewController class
     YTMainAppVideoPlayerOverlayView *mainOverlayView = (YTMainAppVideoPlayerOverlayView *)self.superview;
-    YTMainAppVideoPlayerOverlayViewController *mainOverlayController = (YTMainAppVideoPlayerOverlayViewController *)mainOverlayView.viewDelegate;
+    YTMainAppVideoPlayerOverlayViewController *mainOverlayController = (YTMainAppVideoPlayerOverlayViewController *)mainOverlayView.delegate;
     YTPlayerViewController *playerViewController = mainOverlayController.parentViewController;
     if (playerViewController) {
         [playerViewController didPressYouLoop];
