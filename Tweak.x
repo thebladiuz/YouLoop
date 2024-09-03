@@ -152,9 +152,10 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 // Custom method to handle the button press
 %new(v@:@)
 - (void)didPressYouLoop:(id)arg {
-    // Call our custom method in the YTPlayerViewController class - this is 
-    // directly accessible in the self.playerViewController property
-    YTPlayerViewController *playerViewController = self.playerViewController;
+    // Call our custom method in the YTPlayerViewController class
+    YTMainAppVideoPlayerOverlayView *mainOverlayView = (YTMainAppVideoPlayerOverlayView *)self.superview;
+    YTMainAppVideoPlayerOverlayViewController *mainOverlayController = (YTMainAppVideoPlayerOverlayViewController *)mainOverlayView.viewDelegate;
+    YTPlayerViewController *playerViewController = mainOverlayController.parentViewController;
     if (playerViewController) {
         [playerViewController didPressYouLoop];
     }
