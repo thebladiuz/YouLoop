@@ -31,7 +31,6 @@
 @end
 
 @interface YTMainAppControlsOverlayView (YouLoop)
-@property (retain, nonatomic) YTQTMButton *youLoopButton; // for custom button
 @property (nonatomic, assign) YTPlayerViewController *playerViewController; // for accessing YTPlayerViewController
 - (void)didPressYouLoop:(id)arg; // for custom button press
 @end
@@ -41,7 +40,6 @@
 @end
 
 @interface YTInlinePlayerBarContainerView (YouLoop)
-@property (retain, nonatomic) YTQTMButton *youLoopButton; // for custom button
 @property (nonatomic, strong) YTInlinePlayerBarController *delegate; // for accessing YTPlayerViewController
 - (void)didPressYouLoop:(id)arg; // for custom button press
 @end
@@ -132,24 +130,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
   */
 %group Top
 %hook YTMainAppControlsOverlayView
-%property (retain, nonatomic) YTQTMButton *youLoopButton;
 
-// Modify the initializers to add the custom button
-- (id)initWithDelegate:(id)delegate {
-    self = %orig;
-    self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
-    return self;
-}
-- (id)initWithDelegate:(id)delegate autoplaySwitchEnabled:(BOOL)autoplaySwitchEnabled {
-    self = %orig;
-    self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
-    return self;
-}
-
-// Modify methods that retrieve a button from an ID to return our custom button
-- (YTQTMButton *)button:(NSString *)tweakId {
-    return [tweakId isEqualToString:TweakKey] ? self.youLoopButton : %orig;
-}
 - (UIImage *)buttonImage:(NSString *)tweakId {
     return [tweakId isEqualToString:TweakKey] ? getYouLoopImage(@"3") : %orig;
 }
@@ -165,7 +146,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
         [playerViewController didPressYouLoop];
     }
     // Update button color
-    [self.youLoopButton setImage:getYouLoopImage(@"3") forState:0];
+    [self.overlayButtons[TweakKey] setImage:getYouLoopImage(@"3") forState:0];
 }
 
 %end
@@ -176,19 +157,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
   */
 %group Bottom
 %hook YTInlinePlayerBarContainerView
-%property (retain, nonatomic) YTQTMButton *youLoopButton;
 
-// Modify the initializer to add the custom timestamp button
-- (id)init {
-    self = %orig;
-    self.youLoopButton = [self createButton:TweakKey accessibilityLabel:@"Toggle Loop" selector:@selector(didPressYouLoop:)];
-    return self;
-}
-
-// Modify methods that retrieve a button from an ID to return our custom button
-- (YTQTMButton *)button:(NSString *)tweakId {
-    return [tweakId isEqualToString:TweakKey] ? self.youLoopButton : %orig;
-}
 - (UIImage *)buttonImage:(NSString *)tweakId {
     return [tweakId isEqualToString:TweakKey] ? getYouLoopImage(@"3") : %orig;
 }
@@ -205,7 +174,7 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
         [parentViewController didPressYouLoop];
     }
     // Update button color
-    [self.youLoopButton setImage:getYouLoopImage(@"3") forState:0];
+    [self.overlayButtons[TweakKey] setImage:getYouLoopImage(@"3") forState:0];
 }
 
 %end
@@ -214,7 +183,10 @@ static UIImage *getYouLoopImage(NSString *imageSize) {
 %ctor {
     tweakBundle = YouLoopBundle(); // not sure why I need to store tweakBundle
     // Setup as defined in the example from YTVideoOverlay
-    initYTVideoOverlay(TweakKey);
+    initYTVideoOverlay(TweakKey, @{
+        AccessibilityLabelKey: @"Toggle Loop",
+        SelectorKey: @"didPressYouLoop:"
+    });
     %init(Main);
     %init(Top);
     %init(Bottom);
