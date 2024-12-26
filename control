@@ -1,9 +1,9 @@
 Package: com.bhackel.youloop
 Name: YouLoop
-Version: 1.0.0
+Version: 1.1.0
 Architecture: iphoneos-arm
 Description: copies the video url with the timestamp included.
 Maintainer: bhackel
 Author: bhackel
 Section: Tweaks
-Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 11.0), com.ps.ytvideooverlay (>= 1.1.0)
+Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 11.0), com.ps.ytvideooverlay (>= 2.0.0)
