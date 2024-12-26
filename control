@@ -2,7 +2,7 @@ Package: com.bhackel.youloop
 Name: YouLoop
 Version: 1.1.0
 Architecture: iphoneos-arm
-Description: copies the video url with the timestamp included.
+Description: Adds a player button to enable/disable looping on the current video.
 Maintainer: bhackel
 Author: bhackel
 Section: Tweaks
